@@ -125,16 +125,32 @@ describe('applyInlineFormat', () => {
         expect(composerPlainText(editor)).toBe('hello **world**');
         editor.remove();
     });
-    it('inserts a placeholder helper when toggled with an empty selection', () => {
+    it('inserts stable markdown markers with the placeholder selected for an empty selection', () => {
+        const editor = document.createElement('div');
+        editor.dataset.slot = RICH_INPUT_SLOT;
+        document.body.append(editor);
+        caretIn(editor);
+        expect(applyInlineFormat(editor, 'bold')).toBe(true);
+        expect(composerPlainText(editor)).toBe('**bold**');
+        const selection = window.getSelection();
+        expect(selection?.toString()).toBe('bold');
+        selection.getRangeAt(0).deleteContents();
+        selection.getRangeAt(0).insertNode(document.createTextNode('Hallo'));
+        expect(composerPlainText(editor)).toBe('**Hallo**');
+        editor.remove();
+    });
+    it('keeps empty-selection inline code replacement to one fenced span', () => {
         const editor = document.createElement('div');
         editor.dataset.slot = RICH_INPUT_SLOT;
         document.body.append(editor);
         caretIn(editor);
         expect(applyInlineFormat(editor, 'code')).toBe(true);
-        expect(editor.querySelector('code')?.textContent).toBe('code');
         expect(composerPlainText(editor)).toBe('`code`');
         const selection = window.getSelection();
         expect(selection?.toString()).toBe('code');
+        selection.getRangeAt(0).deleteContents();
+        selection.getRangeAt(0).insertNode(document.createTextNode('Testcode'));
+        expect(composerPlainText(editor)).toBe('`Testcode`');
         editor.remove();
     });
 });

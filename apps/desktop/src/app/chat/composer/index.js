@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { ComposerPrimitive } from '@assistant-ui/react';
 import { useStore } from '@nanostores/react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { composerFill, composerSurfaceGlass } from '@/components/chat/composer-dock';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/i18n';
@@ -76,6 +76,7 @@ export function ChatBar({ busy, cwd, disabled, focusKey, gateway, maxRecordingSe
     // engine writes it — an explicit shared handle, not a back-reference.
     const queueEditRef = useRef(null);
     const composingRef = useRef(false); // true during IME composition (CJK input)
+    const [formattingOpen, setFormattingOpen] = useState(false);
     const { availableThemes, themeName } = useTheme();
     const at = useAtCompletions({ gateway: gateway ?? null, sessionId: sessionId ?? null, cwd: cwd ?? null });
     const slash = useSlashCompletions({ activeSkin: themeName, gateway: gateway ?? null, skinThemes: availableThemes });
@@ -391,6 +392,12 @@ export function ChatBar({ busy, cwd, disabled, focusKey, gateway, maxRecordingSe
             return;
         }
         if (event.key === 'Enter' && !event.shiftKey) {
+            if (formattingOpen) {
+                event.preventDefault();
+                insertPlainTextAtCaret(event.currentTarget, '\n');
+                flushEditorToDraft(event.currentTarget);
+                return;
+            }
             event.preventDefault();
             // Decide from the DOM, not React state. `hasComposerPayload` is derived
             // from the AUI composer state, which lags the latest keystroke by a
@@ -490,8 +497,8 @@ export function ChatBar({ busy, cwd, disabled, focusKey, gateway, maxRecordingSe
             onBold: () => applyComposerFormat('bold'),
             onCode: () => applyComposerFormat('code'),
             onItalic: () => applyComposerFormat('italic')
-        }, hasComposerPayload: hasComposerPayload, onDictate: dictate, onSteer: steerDraft, onToggleAutoSpeak: handleToggleAutoSpeak, state: state, voiceStatus: voiceStatus }));
-    const input = (_jsxs("div", { className: cn('relative', stacked ? 'w-full' : 'min-w-(--composer-input-inline-min-width) flex-1'), children: [_jsx("div", { "aria-disabled": inputDisabled ? true : undefined, "aria-label": t.composer.message, autoCapitalize: "off", autoCorrect: "off", className: cn('min-h-(--composer-input-min-height) max-h-(--composer-input-max-height) cursor-text overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] bg-transparent pb-1 pr-1 pt-1 leading-normal text-foreground outline-none disabled:cursor-not-allowed', 'empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/60', '**:data-ref-text:cursor-default', stacked && 'pl-3', stacked ? 'w-full' : 'min-w-(--composer-input-inline-min-width) flex-1'), contentEditable: !inputDisabled, "data-placeholder": placeholder, "data-slot": RICH_INPUT_SLOT, onBlur: () => window.setTimeout(closeTrigger, 80), onCompositionEnd: event => {
+        }, formattingOpen: formattingOpen, hasComposerPayload: hasComposerPayload, onDictate: dictate, onFormattingOpenChange: setFormattingOpen, onSteer: steerDraft, onToggleAutoSpeak: handleToggleAutoSpeak, state: state, voiceStatus: voiceStatus }));
+    const input = (_jsxs("div", { className: cn('relative', stacked ? 'w-full' : 'min-w-(--composer-input-inline-min-width) flex-1'), children: [_jsx("div", { "aria-disabled": inputDisabled ? true : undefined, "aria-label": t.composer.message, autoCapitalize: "off", autoCorrect: "off", className: cn('min-h-(--composer-input-min-height) max-h-(--composer-input-max-height) cursor-text overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] bg-transparent pb-1 pr-1 pt-1 leading-normal text-foreground outline-none disabled:cursor-not-allowed', 'empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/60', '**:data-ref-text:cursor-default', formattingOpen && 'min-h-24', stacked && 'pl-3', stacked ? 'w-full' : 'min-w-(--composer-input-inline-min-width) flex-1'), contentEditable: !inputDisabled, "data-placeholder": placeholder, "data-slot": RICH_INPUT_SLOT, onBlur: () => window.setTimeout(closeTrigger, 80), onCompositionEnd: event => {
                     composingRef.current = false;
                     // The input events fired *during* composition were skipped (they
                     // carried uncommitted preedit text), and Chromium does NOT reliably

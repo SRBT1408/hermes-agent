@@ -275,6 +275,29 @@ function ensureComposerSelection(editor) {
     placeCaretEnd(editor);
     return composerSelectionRange(editor);
 }
+function inlineMarkdownFence(kind) {
+    if (kind === 'bold') {
+        return ['**', '**'];
+    }
+    if (kind === 'italic') {
+        return ['*', '*'];
+    }
+    return ['`', '`'];
+}
+function insertFormattedPlaceholder(editor, hit, kind, placeholder) {
+    const [open, close] = inlineMarkdownFence(kind);
+    const before = document.createTextNode(open);
+    const body = document.createTextNode(placeholder);
+    const after = document.createTextNode(close);
+    const fragment = document.createDocumentFragment();
+    fragment.append(before, body, after);
+    hit.range.insertNode(fragment);
+    const select = document.createRange();
+    select.setStart(body, 0);
+    select.setEnd(body, body.textContent?.length ?? 0);
+    hit.selection.removeAllRanges();
+    hit.selection.addRange(select);
+}
 export function applyInlineFormat(editor, kind) {
     const format = INLINE_FORMATS[kind];
     const hit = ensureComposerSelection(editor);
@@ -283,12 +306,7 @@ export function applyInlineFormat(editor, kind) {
     }
     const wrapper = document.createElement(format.tag);
     if (hit.range.collapsed) {
-        wrapper.textContent = format.placeholder;
-        hit.range.insertNode(wrapper);
-        const select = document.createRange();
-        select.selectNodeContents(wrapper);
-        hit.selection.removeAllRanges();
-        hit.selection.addRange(select);
+        insertFormattedPlaceholder(editor, hit, kind, format.placeholder);
         return true;
     }
     const fragment = hit.range.extractContents();
