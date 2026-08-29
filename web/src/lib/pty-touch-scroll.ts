@@ -20,3 +20,8 @@ export function computeTouchScrollStep(
     carryPx: totalPx - lines * safeLineHeight,
   };
 }
+
+/** Preserve vertical tracking when a pinch ends with one finger still down. */
+export function remainingSingleTouchY(touchYs: readonly number[]): number | null {
+  return touchYs.length === 1 ? touchYs[0] : null;
+}
