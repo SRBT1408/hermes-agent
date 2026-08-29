@@ -71,6 +71,7 @@ import {
   parseResumeControlMessage,
   shouldFollowPtyOutput,
 } from "@/lib/pty-scroll";
+import { computeTouchScrollStep } from "@/lib/pty-touch-scroll";
 import {
   imageFilesFromTransfer,
   transferMayContainImage,
@@ -808,6 +809,44 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       return false;
     });
 
+    // xterm's native overflow viewport is reliable with a mouse wheel, but
+    // several tablet browsers route one-finger drags into the terminal canvas
+    // instead of scrolling the hidden viewport. Handle vertical touch drags
+    // explicitly so the browser chat transcript remains readable on tablets.
+    let lastTouchY: number | null = null;
+    let touchCarryPx = 0;
+    const handleTouchStart = (ev: TouchEvent) => {
+      if (ev.touches.length !== 1) return;
+      lastTouchY = ev.touches[0].clientY;
+      touchCarryPx = 0;
+    };
+    const handleTouchMove = (ev: TouchEvent) => {
+      if (ev.touches.length !== 1 || lastTouchY === null) return;
+      const currentY = ev.touches[0].clientY;
+      const fontSize = term.options.fontSize ?? 14;
+      const lineHeight = term.options.lineHeight ?? 1;
+      const lineHeightPx = fontSize * lineHeight;
+      const step = computeTouchScrollStep(
+        lastTouchY - currentY,
+        lineHeightPx,
+        touchCarryPx,
+      );
+      lastTouchY = currentY;
+      touchCarryPx = step.carryPx;
+      if (step.lines) term.scrollLines(step.lines);
+      ev.preventDefault();
+      ev.stopPropagation();
+    };
+    const handleTouchEnd = () => {
+      lastTouchY = null;
+      touchCarryPx = 0;
+    };
+    host.style.touchAction = "pan-x pinch-zoom";
+    host.addEventListener("touchstart", handleTouchStart, { passive: true });
+    host.addEventListener("touchmove", handleTouchMove, { passive: false });
+    host.addEventListener("touchend", handleTouchEnd, { passive: true });
+    host.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+
     const unicode11 = new Unicode11Addon();
     term.loadAddon(unicode11);
     term.unicode.activeVersion = "11";
@@ -1512,6 +1551,11 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       host.removeEventListener("paste", handleBrowserPaste, true);
       host.removeEventListener("dragover", handleBrowserDragOver, true);
       host.removeEventListener("drop", handleBrowserDrop, true);
+      host.removeEventListener("touchstart", handleTouchStart);
+      host.removeEventListener("touchmove", handleTouchMove);
+      host.removeEventListener("touchend", handleTouchEnd);
+      host.removeEventListener("touchcancel", handleTouchEnd);
+      host.style.touchAction = "";
       if (metricsDebounce) clearTimeout(metricsDebounce);
       window.removeEventListener("resize", scheduleSyncTerminalMetrics);
       keyboardInsetSyncRef.current = null;
