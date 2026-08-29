@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { computeTouchScrollStep } from "./pty-touch-scroll";
+import {
+  computeTouchScrollStep,
+  remainingSingleTouchY,
+} from "./pty-touch-scroll";
 
 describe("computeTouchScrollStep", () => {
   it("turns an upward finger swipe into downward terminal scrolling", () => {
@@ -32,5 +35,16 @@ describe("computeTouchScrollStep", () => {
       lines: 1,
       carryPx: 4,
     });
+  });
+});
+
+describe("remainingSingleTouchY", () => {
+  it("continues from the remaining finger after a pinch gesture", () => {
+    expect(remainingSingleTouchY([120])).toBe(120);
+  });
+
+  it("clears tracking unless exactly one finger remains", () => {
+    expect(remainingSingleTouchY([])).toBeNull();
+    expect(remainingSingleTouchY([120, 180])).toBeNull();
   });
 });

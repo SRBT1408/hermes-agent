@@ -71,7 +71,10 @@ import {
   parseResumeControlMessage,
   shouldFollowPtyOutput,
 } from "@/lib/pty-scroll";
-import { computeTouchScrollStep } from "@/lib/pty-touch-scroll";
+import {
+  computeTouchScrollStep,
+  remainingSingleTouchY,
+} from "@/lib/pty-touch-scroll";
 import {
   imageFilesFromTransfer,
   transferMayContainImage,
@@ -837,15 +840,22 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       ev.preventDefault();
       ev.stopPropagation();
     };
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (ev: TouchEvent) => {
+      lastTouchY = remainingSingleTouchY(
+        Array.from(ev.touches, (touch) => touch.clientY),
+      );
+      touchCarryPx = 0;
+    };
+    const handleTouchCancel = () => {
       lastTouchY = null;
       touchCarryPx = 0;
     };
+    const previousTouchAction = host.style.touchAction;
     host.style.touchAction = "pan-x pinch-zoom";
     host.addEventListener("touchstart", handleTouchStart, { passive: true });
     host.addEventListener("touchmove", handleTouchMove, { passive: false });
     host.addEventListener("touchend", handleTouchEnd, { passive: true });
-    host.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+    host.addEventListener("touchcancel", handleTouchCancel, { passive: true });
 
     const unicode11 = new Unicode11Addon();
     term.loadAddon(unicode11);
@@ -1554,8 +1564,8 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       host.removeEventListener("touchstart", handleTouchStart);
       host.removeEventListener("touchmove", handleTouchMove);
       host.removeEventListener("touchend", handleTouchEnd);
-      host.removeEventListener("touchcancel", handleTouchEnd);
-      host.style.touchAction = "";
+      host.removeEventListener("touchcancel", handleTouchCancel);
+      host.style.touchAction = previousTouchAction;
       if (metricsDebounce) clearTimeout(metricsDebounce);
       window.removeEventListener("resize", scheduleSyncTerminalMetrics);
       keyboardInsetSyncRef.current = null;
